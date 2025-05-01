@@ -7,18 +7,13 @@ import heapq
 import os
 
 
-# Utilitário para criar sockets UDP
 def criar_socket_udp():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     return sock
 
 
-# Gerenciador de interfaces de rede
 class GerenciadorInterfaces:
-    def __init__(self):
-        pass
-
     def obter_interfaces_ativas(self):
         interfaces = psutil.net_if_addrs()
         lista_interfaces = []
@@ -34,89 +29,108 @@ class GerenciadorInterfaces:
         return lista_interfaces
 
 
-# Tabela de estados de roteadores e algoritmo de Dijkstra
 class BancoDeTopologia:
-    __slots__ = ["_id_local", "_tabela_topologica", "_rotas"]
+    __slots__ = ["_id_local", "_tabela_topologica", "_rotas", "_vizinhos_ip"]
 
-    def __init__(self, id_local: str):
+    def __init__(self, id_local: str, vizinhos_ip: dict):
         self._id_local = id_local
         self._tabela_topologica = {}
         self._rotas = {}
+        self._vizinhos_ip = vizinhos_ip
 
-    def atualizar_topologia(self, pacote_lsa):
-        remetente = pacote_lsa["id_roteador"]
-        sequencia = pacote_lsa["numero_sequencial"]
-
-        entrada_atual = self._tabela_topologica.get(remetente)
-
-        if entrada_atual and entrada_atual["numero_sequencial"] > sequencia:
-            return  # pacote antigo
-
-        self._tabela_topologica[remetente] = {
-            "numero_sequencial": sequencia,
-            "timestamp": pacote_lsa["timestamp"],
-            "vizinhos": {v["id_vizinho"]: v["custo"] for v in pacote_lsa["links"]}
+    def _criar_entrada(self, sequence_number, timestamp, addresses, links):
+        return {
+            "sequence_number": sequence_number,
+            "timestamp": timestamp,
+            "addresses": addresses,
+            "links": links
         }
 
-        for vizinho_id in self._tabela_topologica[remetente]["vizinhos"]:
-            if vizinho_id not in self._tabela_topologica:
-                print(f"[LSDB] Novo roteador descoberto: {vizinho_id}")
-                self._tabela_topologica[vizinho_id] = {
-                    "numero_sequencial": -1,
-                    "timestamp": 0,
-                    "vizinhos": {}
-                }
+    def atualizar_topologia(self, pacote_lsa):
+        remetente = pacote_lsa["router_id"]
+        sequence_number = pacote_lsa["sequence_number"]
 
-        self._executar_dijkstra()
+        entrada_atual = self._tabela_topologica.get(remetente)
+        if entrada_atual and entrada_atual["sequence_number"] >= sequence_number:
+            return
+
+        self._tabela_topologica[remetente] = self._criar_entrada(
+            sequence_number,
+            pacote_lsa["timestamp"],
+            pacote_lsa["addresses"],
+            pacote_lsa["links"]
+        )
+
+        for vizinho in pacote_lsa["links"].keys():
+            if vizinho not in self._tabela_topologica:
+                print(f"[LSDB] Descoberto novo roteador: {vizinho}")
+                self._tabela_topologica[vizinho] = self._criar_entrada(-1, 0, [], {})
+
+        caminhos = self._executar_dijkstra()
+        self._atualizar_rotas(caminhos)
 
     def _executar_dijkstra(self):
-        distancia: dict[str, float] = {no: float('inf') for no in self._tabela_topologica}
-        anterior: dict[str, str | None] = {no: None for no in self._tabela_topologica}
-        visitados: set[str] = set()
+        distancias = {no: float('inf') for no in self._tabela_topologica}
+        caminhos = {no: None for no in self._tabela_topologica}
+        marcados = {}
 
-        distancia[self._id_local] = 0
-        fila_prioridade: list[tuple[float, str]] = [(0, self._id_local)]  # (distância, nó)
+        distancias[self._id_local] = 0
 
-        while fila_prioridade:
-            dist_atual, atual = heapq.heappop(fila_prioridade)
+        while len(marcados) < len(self._tabela_topologica):
+            atual = None
+            menor = float('inf')
+            for no, custo in distancias.items():
+                if no not in marcados and custo < menor:
+                    atual = no
+                    menor = custo
 
-            if atual in visitados:
+            if atual is None:
+                break
+
+            marcados[atual] = True
+            vizinhos = self._tabela_topologica[atual]["links"]
+            for vizinho, custo in vizinhos.items():
+                if vizinho not in marcados:
+                    nova_dist = distancias[atual] + custo
+                    if nova_dist < distancias[vizinho]:
+                        distancias[vizinho] = nova_dist
+                        caminhos[vizinho] = atual
+
+        return caminhos
+
+    def _atualizar_rotas(self, caminhos):
+        self._rotas = {}
+        for destino in caminhos:
+            if destino == self._id_local or caminhos[destino] is None:
                 continue
-            visitados.add(atual)
+            anterior = destino
+            while caminhos[anterior] != self._id_local:
+                anterior = caminhos[anterior]
+            self._rotas[destino] = anterior
 
-            for vizinho, custo in self._tabela_topologica[atual]["vizinhos"].items():
-                if vizinho not in visitados:
-                    nova_dist = dist_atual + custo
-                    if nova_dist < distancia[vizinho]:
-                        distancia[vizinho] = nova_dist
-                        anterior[vizinho] = atual
-                        heapq.heappush(fila_prioridade, (nova_dist, vizinho))
-
-        print(f"[LSDB] Caminhos calculados via Dijkstra: {json.dumps(anterior, indent=4)}")
+        print(f"[LSDB] Rotas atualizadas: {json.dumps(self._rotas, indent=4)}")
 
 
-
-# Responsável por enviar pacotes HELLO
 class GerenciadorHello:
-    __slots__ = ["_id_roteador", "_interfaces", "_vizinhos_conhecidos", "_intervalo", "_porta"]
+    __slots__ = ["_id_roteador", "_interfaces", "_vizinhos", "_intervalo", "_porta"]
 
-    def __init__(self, id_roteador: str, interfaces: list[dict], vizinhos_conhecidos: dict, intervalo: int = 10, porta: int = 5000):
+    def __init__(self, id_roteador: str, interfaces: list, vizinhos: dict, intervalo=10, porta=5000):
         self._id_roteador = id_roteador
         self._interfaces = interfaces
-        self._vizinhos_conhecidos = vizinhos_conhecidos
+        self._vizinhos = vizinhos
         self._intervalo = intervalo
         self._porta = porta
 
-    def _montar_pacote_hello(self, ip_origem: str):
+    def _montar_pacote_hello(self, ip_origem):
         return {
             "tipo": "HELLO",
             "id_roteador": self._id_roteador,
             "timestamp": time.time(),
             "ip_origem": ip_origem,
-            "vizinhos_conhecidos": list(self._vizinhos_conhecidos.keys())
+            "vizinhos_conhecidos": list(self._vizinhos.keys())
         }
 
-    def _executar_envio_periodico(self, ip_local: str, ip_broadcast: str):
+    def _executar_envio_periodico(self, ip_local, ip_broadcast):
         sock = criar_socket_udp()
         while True:
             pacote = self._montar_pacote_hello(ip_local)
@@ -130,25 +144,23 @@ class GerenciadorHello:
     def iniciar_envio(self):
         for interface in self._interfaces:
             if interface["broadcast"]:
-                thread = threading.Thread(
+                threading.Thread(
                     target=self._executar_envio_periodico,
                     args=(interface["ip"], interface["broadcast"]),
                     daemon=True
-                )
-                thread.start()
+                ).start()
 
 
-# Classe principal do roteador/dispositivo
 class DispositivoDeRoteamento:
-    __slots__ = ["_id", "_interfaces", "_porta", "_tamanho_buffer", "_lsdb", "_vizinhos"]
+    __slots__ = ["_id", "_interfaces", "_porta", "_buffer", "_vizinhos", "_lsdb"]
 
-    def __init__(self, id_roteador: str, interfaces: list[dict], porta: int = 5000, tamanho_buffer: int = 4096):
+    def __init__(self, id_roteador, interfaces, porta=5000, buffer=4096):
         self._id = id_roteador
         self._interfaces = interfaces
         self._porta = porta
-        self._tamanho_buffer = tamanho_buffer
+        self._buffer = buffer
         self._vizinhos = {}
-        self._lsdb = BancoDeTopologia(self._id)
+        self._lsdb = BancoDeTopologia(id_roteador, self._vizinhos)
 
     def _escutar_pacotes(self):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
@@ -157,31 +169,30 @@ class DispositivoDeRoteamento:
 
             while True:
                 try:
-                    dados, endereco = sock.recvfrom(self._tamanho_buffer)
+                    dados, endereco = sock.recvfrom(self._buffer)
                     pacote = json.loads(dados.decode())
-                    if pacote.get("tipo") == "HELLO" and pacote.get("id_roteador") != self._id:
-                        print(f"\n[{self._id}] Recebido HELLO de {pacote['id_roteador']} via {endereco[0]}")
+                    if pacote.get("tipo") == "HELLO" and pacote["id_roteador"] != self._id:
+                        print(f"[{self._id}] Recebido HELLO de {pacote['id_roteador']} via {endereco[0]}")
                         self._vizinhos[pacote["id_roteador"]] = endereco[0]
                         self._atualizar_lsdb_com_vizinho(pacote)
                 except Exception as erro:
                     print(f"[{self._id}] Erro ao receber pacote: {erro}")
 
     def _atualizar_lsdb_com_vizinho(self, pacote_hello):
-        vizinhos = [(v, 1) for v in pacote_hello["vizinhos_conhecidos"]]  # custo fixo 1
+        links = {v: 1 for v in pacote_hello["vizinhos_conhecidos"]}  # custo fixo 1
         pacote_lsa = {
             "tipo": "LSA",
-            "id_roteador": pacote_hello["id_roteador"],
+            "router_id": pacote_hello["id_roteador"],
             "timestamp": time.time(),
-            "numero_sequencial": int(time.time()),
-            "links": [{"id_vizinho": v[0], "custo": v[1]} for v in vizinhos]
+            "sequence_number": int(time.time()),
+            "addresses": [pacote_hello["ip_origem"]],
+            "links": links
         }
         self._lsdb.atualizar_topologia(pacote_lsa)
 
     def iniciar_operacao(self):
-        emissor = GerenciadorHello(self._id, self._interfaces, self._vizinhos, intervalo=10, porta=self._porta)
         threading.Thread(target=self._escutar_pacotes, daemon=True).start()
-        emissor.iniciar_envio()
-
+        GerenciadorHello(self._id, self._interfaces, self._vizinhos, porta=self._porta).iniciar_envio()
         while True:
             time.sleep(1)
 

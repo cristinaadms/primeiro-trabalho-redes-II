@@ -135,7 +135,7 @@ class GeradorDockerCompose:
 
 if __name__ == '__main__':
     # Ajuste o caminho para o arquivo CSV
-    caminho_csv = "_graph\\grafo.csv"
+    caminho_csv = "graph\\grafo.csv"
     caminho_saida = "docker-compose.yml"
 
     gerador = GeradorDockerCompose(caminho_csv)

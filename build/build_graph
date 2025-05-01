@@ -67,7 +67,7 @@ def salvar_csv_grafo(grafo: nx.Graph, caminho_csv: str = "grafo.csv"):
         for no_origem, no_destino, dados_aresta in grafo.edges(data=True):
             escritor_csv.writerow([no_origem, no_destino, dados_aresta['peso']])
 
-def main(quantidade_nos: int = 5, probabilidade_conexao: float = 0.3, caminho_pasta: str = "_graph", peso_minimo: int = 1, peso_maximo: int = 10):
+def main(quantidade_nos: int = 5, probabilidade_conexao: float = 0.3, caminho_pasta: str = "graph", peso_minimo: int = 1, peso_maximo: int = 10):
     """
     Função principal para gerar o grafo, salvar imagem e salvar os dados em CSV.
     
