@@ -1,0 +1,11 @@
+- instalações:
+
+pip install networkx
+pip install matplotlib
+docker pull python:3.13.2-slim
+
+- comandos do docker:
+
+docker-compose up --build 
+docker-compose down
+
