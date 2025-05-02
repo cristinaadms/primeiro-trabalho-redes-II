@@ -6,7 +6,7 @@ import csv
 
 def gerar_grafo_aleatorio(quantidade_nos: int, probabilidade_conexao: float = 0.3, peso_minimo: int = 1, peso_maximo: int = 10):
     """
-    Gera um grafo aleatório utilizando o modelo de Erdős–Rényi com a probabilidade de conexão entre os nós.
+    Gera um grafo aleatório com nós nomeados como RT0, RT1, RT2, ..., RTn.
     
     Parâmetros:
     - quantidade_nos (int): número de nós no grafo.
@@ -23,13 +23,18 @@ def gerar_grafo_aleatorio(quantidade_nos: int, probabilidade_conexao: float = 0.
     for no_origem, no_destino in grafo.edges():
         peso = random.randint(peso_minimo, peso_maximo)
         grafo[no_origem][no_destino]['peso'] = peso
-    
-    # Garantir que o grafo seja conexo
+
+    # Garante que o grafo seja conexo
     while not nx.is_connected(grafo):
         no_origem, no_destino = random.sample(range(quantidade_nos), 2)
         if not grafo.has_edge(no_origem, no_destino):
             peso = random.randint(peso_minimo, peso_maximo)
             grafo.add_edge(no_origem, no_destino, peso=peso)
+
+    # Renomeia os nós como RT0, RT1, ..., RTn
+    nomes = [f"rt{i}" for i in range(quantidade_nos)]
+    mapeamento = dict(zip(grafo.nodes(), nomes))
+    grafo = nx.relabel_nodes(grafo, mapeamento)
 
     return grafo
 

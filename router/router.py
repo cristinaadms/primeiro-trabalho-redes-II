@@ -3,7 +3,6 @@ import psutil
 import socket
 import threading
 import json
-import heapq
 import os
 
 
@@ -19,12 +18,15 @@ class GerenciadorInterfaces:
         lista_interfaces = []
 
         for nome, enderecos in interfaces.items():
-            if nome.startswith("eth"):
-                for endereco in enderecos:
-                    if endereco.family == socket.AF_INET:
+            for endereco in enderecos:
+                if endereco.family == socket.AF_INET:
+                    ip = endereco.address
+                    broadcast = endereco.broadcast
+                    if ip.startswith("10.10."):
                         lista_interfaces.append({
-                            "ip": endereco.address,
-                            "broadcast": endereco.broadcast
+                            "nome": nome,
+                            "ip": ip,
+                            "broadcast": broadcast
                         })
         return lista_interfaces
 
@@ -179,7 +181,12 @@ class DispositivoDeRoteamento:
                     print(f"[{self._id}] Erro ao receber pacote: {erro}")
 
     def _atualizar_lsdb_com_vizinho(self, pacote_hello):
-        links = {v: 1 for v in pacote_hello["vizinhos_conhecidos"]}  # custo fixo 1
+        links = {}
+        for vizinho in pacote_hello["vizinhos_conhecidos"]:
+            custo_env = os.getenv(f"CUSTO_{self._id}_{vizinho}")
+            custo = int(custo_env) if custo_env else 1
+            links[vizinho] = custo
+
         pacote_lsa = {
             "tipo": "LSA",
             "router_id": pacote_hello["id_roteador"],

@@ -9,3 +9,7 @@ docker pull python:3.13.2-slim
 docker-compose up --build 
 docker-compose down
 
+
+docker network prune
+
+

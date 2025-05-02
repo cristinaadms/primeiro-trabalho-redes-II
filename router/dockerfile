@@ -6,4 +6,6 @@ COPY router.py .
 
 ENV PYTHONUNBUFFERED=1
 
+RUN pip install psutil
+
 CMD ["python", "-u", "router.py"]
