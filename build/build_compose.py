@@ -1,152 +1,173 @@
 import yaml
 import csv
 from collections import defaultdict
-import os
 
 
-class Grafo:
-    def __init__(self, caminho_csv):
-        self.conexoes = []
-        self.roteadores = set()
-        self.carregar_conexoes(caminho_csv)
+class LeitorGrafoCSV:
+    def __init__(self, caminho_arquivo):
+        self.caminho_arquivo = caminho_arquivo
+        self.lista_conexoes = []
+        self.conjunto_roteadores = set()
 
-    def carregar_conexoes(self, caminho_csv):
-        """Carrega as conexões a partir de um arquivo CSV."""
-        # Certifica-se de que o caminho está correto
-        caminho_csv = os.path.abspath(caminho_csv)  # Obtém o caminho absoluto para evitar problemas de diretório
-        with open(caminho_csv, newline='') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                origem, destino, peso = row['no_origem'], row['no_destino'], int(row['peso'])
-                self.conexoes.append((origem, destino, peso))
-                self.roteadores.update([origem, destino])
+    def carregar_conexoes(self):
+        with open(self.caminho_arquivo, newline='') as arquivo_csv:
+            leitor = csv.DictReader(arquivo_csv)
+            for linha in leitor:
+                no_origem = linha['no_origem']
+                no_destino = linha['no_destino']
+                peso = int(linha['peso'])
 
-    def get_conexoes(self):
-        return self.conexoes
+                self.lista_conexoes.append((no_origem, no_destino, peso))
+                self.conjunto_roteadores.update([no_origem, no_destino])
 
-    def get_roteadores(self):
-        return self.roteadores
+        return self.lista_conexoes, sorted(self.conjunto_roteadores)
 
 
-class RedeDockerCompose:
-    def __init__(self, grafo: Grafo):
-        self.grafo = grafo
-        self.conexoes_por_roteador = defaultdict(list)
-        self.subnet_base = "10.10.{0}.0/24"
-        self.ip_base = "10.10.{0}.{1}"
-        self.networks = {}
-        self.ip_map = defaultdict(dict)
-        self.subnet_count = 1
-        self.subnet_cost = {}
-        self.docker_compose = {
-            'version': '3.9',  # A versão sempre deve ser no topo
-            'services': {}  # Aqui vamos colocar os serviços primeiro
+class ConexaoRede:
+    def __init__(self, identificador, subrede, endereco_origem, endereco_destino, custo_conexao):
+        self.identificador = identificador
+        self.subrede = subrede
+        self.endereco_origem = endereco_origem
+        self.endereco_destino = endereco_destino
+        self.custo_conexao = custo_conexao
+
+class ConfiguracaoRoteador:
+    def __init__(self, nome_roteador):
+        self.nome_roteador = nome_roteador
+        self.configuracao = {
+            'build': './roteador',
+            'container_name': nome_roteador,
+            'environment': {
+                'CONTAINER_NAME': nome_roteador,
+            },
+            'volumes': [
+                './roteador/roteador.py:/app/roteador.py'
+            ],
+            'networks': {},
+            'cap_add': ['NET_ADMIN']
         }
 
-    def montar_conexoes_por_roteador(self):
-        """Organiza as conexões por roteador."""
-        for origem, destino, peso in self.grafo.get_conexoes():
-            self.conexoes_por_roteador[origem].append(destino)
-            self.conexoes_por_roteador[destino].append(origem)
+    def adicionar_rede_com_custo(self, nome_rede, endereco_ip, custo_rede):
+        self.configuracao['networks'][nome_rede] = {'ipv4_address': endereco_ip}
+        self.configuracao['environment'][f"CUSTO_{nome_rede}"] = str(custo_rede)
 
-    def definir_redes_e_ips(self):
-        """Define as redes e os IPs para as conexões."""
-        for origem, destino, peso in self.grafo.get_conexoes():
-            net_name = f"{origem}_{destino}_net"
-            subnet = self.subnet_base.format(self.subnet_count)
-            self.ip_map[origem][net_name] = self.ip_base.format(self.subnet_count, 2)
-            self.ip_map[destino][net_name] = self.ip_base.format(self.subnet_count, 3)
-            self.networks[net_name] = subnet
-            self.subnet_cost[net_name] = peso
-            self.subnet_count += 1
+    def adicionar_rede_hosts(self, nome_rede, endereco_gateway):
+        self.configuracao['networks'][nome_rede] = {'ipv4_address': endereco_gateway}
 
-    def definir_servicos_roteadores(self):
-        """Define os serviços para cada roteador no Docker Compose."""
-        for roteador in sorted(self.grafo.get_roteadores()):
-            service = {
-                'build': './router',
-                'container_name': roteador,
-                'environment': {
-                    'CONTAINER_NAME': roteador,
-                },
-                'volumes': [
-                    './router/router.py:/app/router.py'
-                ],
-                'networks': {}
-            }
-            for net, ip in self.ip_map[roteador].items():
-                service['networks'][net] = {'ipv4_address': ip}
-                service['environment'][f"CUSTO_{net}"] = str(self.subnet_cost[net])
-            service['cap_add'] = ['NET_ADMIN']
+    def obter_configuracao(self):
+        return self.configuracao
 
-            self.docker_compose['services'][roteador] = service
 
-    def definir_hosts(self):
-        """Cria uma rede exclusiva entre cada roteador e seus hosts, conectando dois hosts a um único roteador."""
-        for roteador in sorted(self.grafo.get_roteadores()):
-            net_name = f"{roteador}_hosts_net"
-            subnet = self.subnet_base.format(self.subnet_count)
-            self.networks[net_name] = subnet
-            self.subnet_count += 1
+class ConfiguracaoHost:
+    def __init__(self, nome_host, endereco_ip, nome_rede):
+        self.configuracao = {
+            'build': './host',
+            'container_name': nome_host,
+            'networks': {
+                nome_rede: {'ipv4_address': endereco_ip}
+            },
+            'cap_add': ['NET_ADMIN']
+        }
 
-            # IPs para roteador e dois hosts
-            roteador_ip = self.ip_base.format(self.subnet_count - 1, 1)
-            host1_ip = self.ip_base.format(self.subnet_count - 1, 2)
-            host2_ip = self.ip_base.format(self.subnet_count - 1, 3)
+    def obter_configuracao(self):
+        return self.configuracao
 
-            # Adiciona a rede no roteador
-            self.ip_map[roteador][net_name] = roteador_ip
-            self.subnet_cost[net_name] = 1  # Custo fictício para rede local
 
-            for i, host_ip in enumerate([host1_ip, host2_ip], start=1):
-                host_name = f"{roteador}_h{i}"
-                self.docker_compose['services'][host_name] = {
-                    'build': './host',
-                    'container_name': host_name,
-                    'networks': {
-                        net_name: {'ipv4_address': host_ip}
-                    },
-                }
+class DockerCompose:
+    def __init__(self):
+        self.subrede_roteadores = "10.10.{0}.0/24"
+        self.ip_roteadores = "10.10.{0}.{1}"
+        self.subrede_hosts = "192.168.{0}.0/24"
 
-    def definir_networks(self):
-        """Define as redes dentro do Docker Compose.""" 
-        self.docker_compose['networks'] = {}
-        for net, subnet in self.networks.items():
-            self.docker_compose['networks'][net] = {
+        self.estrutura_compose = {
+            'version': '3.9',
+            'services': {},
+            'networks': {}
+        }
+
+        self.mapa_subredes = {}
+        self.custos_subredes = {}
+        self.mapa_ips = defaultdict(dict)
+        self.contador_subredes = 1
+
+    def criar_redes_roteadores(self, lista_conexoes):
+        redes_criadas = []
+
+        for origem, destino, custo in lista_conexoes:
+            nome_subrede = f"{origem}_{destino}_net"
+            subrede = self.subrede_roteadores.format(self.contador_subredes)
+            ip_origem = self.ip_roteadores.format(self.contador_subredes, 2)
+            ip_destino = self.ip_roteadores.format(self.contador_subredes, 3)
+
+            self.mapa_ips[origem][nome_subrede] = ip_origem
+            self.mapa_ips[destino][nome_subrede] = ip_destino
+
+            self.mapa_subredes[nome_subrede] = subrede
+            self.custos_subredes[nome_subrede] = custo
+
+            redes_criadas.append(
+                ConexaoRede(nome_subrede, subrede, ip_origem, ip_destino, custo)
+            )
+
+            self.contador_subredes += 1
+
+        return redes_criadas
+
+    def adicionar_roteadores_com_hosts(self, lista_roteadores):
+        for nome_roteador in lista_roteadores:
+            roteador = ConfiguracaoRoteador(nome_roteador)
+
+            # Conecta o roteador às redes entre roteadores
+            for nome_rede, ip_roteador in self.mapa_ips[nome_roteador].items():
+                custo_rede = self.custos_subredes[nome_rede]
+                roteador.adicionar_rede_com_custo(nome_rede, ip_roteador, custo_rede)
+
+            # Cria rede exclusiva para os hosts do roteador
+            nome_rede_hosts = f"{nome_roteador}_hosts_net"
+            subrede_hosts = self.subrede_hosts.format(self.contador_subredes)
+            self.mapa_subredes[nome_rede_hosts] = subrede_hosts
+
+            ip_gateway = f"192.168.{self.contador_subredes}.2"
+            roteador.adicionar_rede_hosts(nome_rede_hosts, ip_gateway)
+
+            self.estrutura_compose['services'][nome_roteador] = roteador.obter_configuracao()
+
+            # Cria dois hosts conectados à rede do roteador
+            for indice in range(1, 3):
+                nome_host = f"{nome_roteador}_h{indice}"
+                ip_host = f"192.168.{self.contador_subredes}.{indice + 2}"
+
+                host = ConfiguracaoHost(nome_host, ip_host, nome_rede_hosts)
+                self.estrutura_compose['services'][nome_host] = host.obter_configuracao()
+
+            self.contador_subredes += 1
+
+    def construir_redes(self):
+        for nome_rede, subnet in self.mapa_subredes.items():
+            self.estrutura_compose['networks'][nome_rede] = {
                 'driver': 'bridge',
                 'ipam': {
                     'config': [{'subnet': subnet}]
                 }
             }
 
-    def gerar_docker_compose(self, caminho_saida="docker-compose.yml"):
-        """Gera e salva o arquivo docker-compose.yml."""
-        self.montar_conexoes_por_roteador()
-        self.definir_redes_e_ips()
-        self.definir_hosts()  # <- Mova esta linha para antes de definir os serviços dos roteadores
-        self.definir_servicos_roteadores()  # Agora os roteadores terão os IPs das redes de host
-        self.definir_networks()
-
-        with open(caminho_saida, "w") as f:
-            yaml.dump(self.docker_compose, f, default_flow_style=False, sort_keys=False)
-
-        print(f"Docker Compose salvo em: {caminho_saida}")
+    def salvar_arquivo_compose(self, caminho_destino):
+        with open(caminho_destino, "w") as arquivo:
+            yaml.dump(self.estrutura_compose, arquivo, default_flow_style=False, sort_keys=False)
+        print(f"Docker Compose salvo em: {caminho_destino}")
 
 
 
-class GeradorDockerCompose:
-    def __init__(self, caminho_csv):
-        self.grafo = Grafo(caminho_csv)
-        self.rede = RedeDockerCompose(self.grafo)
+def dockercompose_build(caminho_csv, caminho_saida="docker-compose.yml"):
+    leitor = LeitorGrafoCSV(caminho_csv)  
+    conexoes, roteadores = leitor.carregar_conexoes()  
 
-    def gerar(self, caminho_saida="docker-compose.yml"):
-        self.rede.gerar_docker_compose(caminho_saida)
+    builder = DockerCompose()
+    builder.criar_redes_roteadores(conexoes)  
+    builder.adicionar_roteadores_com_hosts(roteadores) 
+    builder.construir_redes()  
+    builder.salvar_arquivo_compose(caminho_saida)  
 
 
 if __name__ == '__main__':
-    # Ajuste o caminho para o arquivo CSV
-    caminho_csv = "graph\\grafo.csv"
-    caminho_saida = "docker-compose.yml"
-
-    gerador = GeradorDockerCompose(caminho_csv)
-    gerador.gerar(caminho_saida)
+    dockercompose_build("graph\\grafo.csv")
