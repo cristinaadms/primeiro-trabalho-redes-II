@@ -1,0 +1,212 @@
+version: '3.9'
+services:
+  rt0:
+    build: ./router
+    container_name: rt0
+    environment:
+      CONTAINER_NAME: rt0
+      CUSTO_rt0_rt3_net: '9'
+    volumes:
+    - ./router/router.py:/app/router.py
+    networks:
+      rt0_rt3_net:
+        ipv4_address: 10.10.1.2
+      rt0_hosts_net:
+        ipv4_address: 192.168.5.2
+    cap_add:
+    - NET_ADMIN
+  rt0_h1:
+    build: ./host
+    container_name: rt0_h1
+    networks:
+      rt0_hosts_net:
+        ipv4_address: 192.168.5.3
+    cap_add:
+    - NET_ADMIN
+  rt0_h2:
+    build: ./host
+    container_name: rt0_h2
+    networks:
+      rt0_hosts_net:
+        ipv4_address: 192.168.5.4
+    cap_add:
+    - NET_ADMIN
+  rt1:
+    build: ./router
+    container_name: rt1
+    environment:
+      CONTAINER_NAME: rt1
+      CUSTO_rt1_rt3_net: '4'
+    volumes:
+    - ./router/router.py:/app/router.py
+    networks:
+      rt1_rt3_net:
+        ipv4_address: 10.10.2.2
+      rt1_hosts_net:
+        ipv4_address: 192.168.6.2
+    cap_add:
+    - NET_ADMIN
+  rt1_h1:
+    build: ./host
+    container_name: rt1_h1
+    networks:
+      rt1_hosts_net:
+        ipv4_address: 192.168.6.3
+    cap_add:
+    - NET_ADMIN
+  rt1_h2:
+    build: ./host
+    container_name: rt1_h2
+    networks:
+      rt1_hosts_net:
+        ipv4_address: 192.168.6.4
+    cap_add:
+    - NET_ADMIN
+  rt2:
+    build: ./router
+    container_name: rt2
+    environment:
+      CONTAINER_NAME: rt2
+      CUSTO_rt2_rt3_net: '7'
+    volumes:
+    - ./router/router.py:/app/router.py
+    networks:
+      rt2_rt3_net:
+        ipv4_address: 10.10.3.2
+      rt2_hosts_net:
+        ipv4_address: 192.168.7.2
+    cap_add:
+    - NET_ADMIN
+  rt2_h1:
+    build: ./host
+    container_name: rt2_h1
+    networks:
+      rt2_hosts_net:
+        ipv4_address: 192.168.7.3
+    cap_add:
+    - NET_ADMIN
+  rt2_h2:
+    build: ./host
+    container_name: rt2_h2
+    networks:
+      rt2_hosts_net:
+        ipv4_address: 192.168.7.4
+    cap_add:
+    - NET_ADMIN
+  rt3:
+    build: ./router
+    container_name: rt3
+    environment:
+      CONTAINER_NAME: rt3
+      CUSTO_rt0_rt3_net: '9'
+      CUSTO_rt1_rt3_net: '4'
+      CUSTO_rt2_rt3_net: '7'
+      CUSTO_rt3_rt4_net: '2'
+    volumes:
+    - ./router/router.py:/app/router.py
+    networks:
+      rt0_rt3_net:
+        ipv4_address: 10.10.1.3
+      rt1_rt3_net:
+        ipv4_address: 10.10.2.3
+      rt2_rt3_net:
+        ipv4_address: 10.10.3.3
+      rt3_rt4_net:
+        ipv4_address: 10.10.4.2
+      rt3_hosts_net:
+        ipv4_address: 192.168.8.2
+    cap_add:
+    - NET_ADMIN
+  rt3_h1:
+    build: ./host
+    container_name: rt3_h1
+    networks:
+      rt3_hosts_net:
+        ipv4_address: 192.168.8.3
+    cap_add:
+    - NET_ADMIN
+  rt3_h2:
+    build: ./host
+    container_name: rt3_h2
+    networks:
+      rt3_hosts_net:
+        ipv4_address: 192.168.8.4
+    cap_add:
+    - NET_ADMIN
+  rt4:
+    build: ./router
+    container_name: rt4
+    environment:
+      CONTAINER_NAME: rt4
+      CUSTO_rt3_rt4_net: '2'
+    volumes:
+    - ./router/router.py:/app/router.py
+    networks:
+      rt3_rt4_net:
+        ipv4_address: 10.10.4.3
+      rt4_hosts_net:
+        ipv4_address: 192.168.9.2
+    cap_add:
+    - NET_ADMIN
+  rt4_h1:
+    build: ./host
+    container_name: rt4_h1
+    networks:
+      rt4_hosts_net:
+        ipv4_address: 192.168.9.3
+    cap_add:
+    - NET_ADMIN
+  rt4_h2:
+    build: ./host
+    container_name: rt4_h2
+    networks:
+      rt4_hosts_net:
+        ipv4_address: 192.168.9.4
+    cap_add:
+    - NET_ADMIN
+networks:
+  rt0_rt3_net:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 10.10.1.0/24
+  rt1_rt3_net:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 10.10.2.0/24
+  rt2_rt3_net:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 10.10.3.0/24
+  rt3_rt4_net:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 10.10.4.0/24
+  rt0_hosts_net:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 192.168.5.0/24
+  rt1_hosts_net:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 192.168.6.0/24
+  rt2_hosts_net:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 192.168.7.0/24
+  rt3_hosts_net:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 192.168.8.0/24
+  rt4_hosts_net:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 192.168.9.0/24

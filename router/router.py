@@ -265,9 +265,19 @@ class LSASender:
     def __init__(self, router_id: str, neighbors_ip: dict[str, str], neighbors_cost: dict[str, int],
                  interfaces: list[dict[str, str]], lsdb, interval: int = 30, port: int = 5000):
         self._router_id = router_id
+        self._neighbors_cost = neighbors_cost
+        self._neighbors_ip = neighbors_ip
         self._iniciado = False
         self._packet_builder = LSAPacketBuilder(router_id, neighbors_cost, interfaces)
         self._broadcaster = LSABroadcaster(router_id, neighbors_ip, port, interval, lsdb)
+        
+    @property 
+    def neighbors_cost(self):
+        return self._neighbors_cost
+    
+    @property
+    def neighbors_ip(self):
+        return self._neighbors_ip
 
     def iniciar(self):
         if not self._iniciado:
@@ -281,6 +291,9 @@ class LSASender:
 
     def encaminhar(self, pacote: dict, neighbor_ip: str):
         self._broadcaster.encaminhar_para_vizinhos(pacote, neighbor_ip)
+
+    def encaminhar_para_vizinhos(self, pacote: dict, neighbor_ip: str):
+        return self._broadcaster.encaminhar_para_vizinhos(pacote, neighbor_ip)
 
 
 #--------------------------ROTEADOR----------------------------#
@@ -436,9 +449,9 @@ class GerenciadorVizinhos:
         self._lsdb = lsdb
         self._neighbors_detected = lsa.neighbors_cost
         self._neighbors_recognized = lsa.neighbors_ip
-
         self._hello_processor = ProcessadorHello(router_id, self._neighbors_detected, self._neighbors_recognized, lsa)
         self._lsa_processor = ProcessadorLSA(lsdb, lsa)
+
 
     def processar_hello(self, pacote: dict, received_ip: str):
         received_id = pacote.get("router_id")

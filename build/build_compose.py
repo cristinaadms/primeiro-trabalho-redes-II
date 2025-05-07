@@ -35,13 +35,13 @@ class ConfiguracaoRoteador:
     def __init__(self, nome_roteador):
         self.nome_roteador = nome_roteador
         self.configuracao = {
-            'build': './roteador',
+            'build': './router',
             'container_name': nome_roteador,
             'environment': {
                 'CONTAINER_NAME': nome_roteador,
             },
             'volumes': [
-                './roteador/roteador.py:/app/roteador.py'
+                './router/router.py:/app/router.py'
             ],
             'networks': {},
             'cap_add': ['NET_ADMIN']
