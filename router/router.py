@@ -103,7 +103,7 @@ class GerenciadorRotas:
         self._roteamento = dict(sorted(self._roteamento.items()))
 
     def atualizar_rotas(self):
-        for destino, gateway in self._roteamento.items():
+        for destino, gateway in list(self._roteamento.items()):
             if gateway not in self.neighbors_ip:
                 print(f"[LSDB] Ignorando rota para {destino} via {gateway}: gateway não conhecido ainda")
                 continue
@@ -188,7 +188,6 @@ class HelloSender:
 
     def iniciar(self):
         interfaces = [item for item in self._interfaces if "broadcast" in item]
-        print(interfaces)
 
         for interface_info in interfaces:
             ip_address = interface_info["address"]
