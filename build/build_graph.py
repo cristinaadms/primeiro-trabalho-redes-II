@@ -1,3 +1,22 @@
+"""
+Este módulo gera um grafo aleatório com pesos nas arestas, salva a visualização em uma imagem PNG
+e exporta os dados do grafo em formato CSV. Pode ser utilizado para simulações de redes, algoritmos
+de grafos e testes educacionais.
+
+Funções:
+    - gerar_grafo_aleatorio(quantidade_nos, probabilidade_conexao, peso_minimo, peso_maximo):
+        Cria um grafo aleatório com pesos e rótulos nos nós.
+
+    - salvar_imagem_grafo(grafo, caminho_imagem):
+        Gera e salva uma imagem do grafo com rótulos e pesos nas arestas.
+
+    - salvar_csv_grafo(grafo, caminho_csv):
+        Exporta os dados das conexões do grafo para um arquivo CSV.
+
+    - main(quantidade_nos, probabilidade_conexao, caminho_pasta, peso_minimo, peso_maximo):
+        Executa o processo completo: gera o grafo, salva a imagem e os dados em arquivos.
+"""
+
 import networkx as nx
 import matplotlib.pyplot as plt
 import random
