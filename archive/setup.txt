@@ -1,15 +1,24 @@
-- instalações:
+ARQUIVO DE COMANDOS E INSTALAÇÃO SIMPLES
 
-pip install networkx
+1. Instalações de Bibliotecas:
+- Biblioteca NetworkX usada para criar e manipular grafos:
+pip install networkx 
+
+- Biblioteca Matplotlib usada para criar gráficos e visualizações:
 pip install matplotlib
+
+- Baixar a imagem Docker oficial do Python 3.13.2 com a versão 'slim' (mais leve):
 docker pull python:3.13.2-slim
 
-- comandos do docker:
-
+2. Uso do Docker com Docker-Compose:
+- Sobe os containers definidos no arquivo docker-compose.yml e (re)constrói as imagens:
 docker-compose up --build 
+
+- Para e remove os containers criados com o docker-compose:
 docker-compose down
 
-
+3. Limpeza de Rede Docker (Opcional)
+- Remove todas as redes não utilizadas criadas pelo Docker:
 docker network prune
 
 
