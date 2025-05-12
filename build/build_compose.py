@@ -1,9 +1,36 @@
+"""
+Este módulo realiza a leitura de um grafo a partir de um arquivo CSV contendo conexões entre nós
+e gera um arquivo Docker Compose para simular uma rede de roteadores e hosts conectados.
+
+Classes:
+    - LeitorGrafoCSV: Lê conexões de um grafo a partir de um CSV.
+    - ConexaoRede: Representa uma conexão entre dois roteadores.
+    - ConfiguracaoRoteador: Define a configuração de um roteador no Docker Compose.
+    - ConfiguracaoHost: Define a configuração de um host no Docker Compose.
+    - DockerCompose: Constrói a estrutura de redes e serviços no Docker Compose.
+
+Função:
+    - dockercompose_build(caminho_csv, caminho_saida): Executa a leitura do CSV e gera o arquivo docker-compose.yml.
+"""
+
 import yaml
 import csv
 from collections import defaultdict
 
 
 class LeitorGrafoCSV:
+    """
+        Classe responsável por ler o arquivo CSV com conexões entre roteadores.
+
+        Atributos:
+            caminho_arquivo (str): Caminho do arquivo CSV.
+            lista_conexoes (list): Lista de tuplas contendo conexões (origem, destino, peso).
+            conjunto_roteadores (set): Conjunto de todos os roteadores encontrados.
+
+        Métodos:
+            carregar_conexoes(): Lê o CSV e retorna uma lista de conexões e uma lista de roteadores únicos.
+    """
+
     def __init__(self, caminho_arquivo):
         self.caminho_arquivo = caminho_arquivo
         self.lista_conexoes = []
@@ -24,6 +51,17 @@ class LeitorGrafoCSV:
 
 
 class ConexaoRede:
+    """
+        Classe que representa uma conexão entre dois roteadores em uma subrede.
+
+        Atributos:
+            identificador (str): Nome da subrede.
+            subrede (str): Endereço da subrede.
+            endereco_origem (str): IP do roteador de origem.
+            endereco_destino (str): IP do roteador de destino.
+            custo_conexao (int): Custo associado à conexão.
+    """
+
     def __init__(self, identificador, subrede, endereco_origem, endereco_destino, custo_conexao):
         self.identificador = identificador
         self.subrede = subrede
@@ -32,6 +70,19 @@ class ConexaoRede:
         self.custo_conexao = custo_conexao
 
 class ConfiguracaoRoteador:
+    """
+        Classe que define a configuração de um roteador no Docker Compose.
+
+        Atributos:
+            nome_roteador (str): Nome do roteador.
+            configuracao (dict): Dicionário contendo a configuração do serviço no Compose.
+
+        Métodos:
+            adicionar_rede_com_custo(nome_rede, endereco_ip, custo_rede): Adiciona rede de roteador com custo.
+            adicionar_rede_hosts(nome_rede, endereco_gateway): Adiciona rede para hosts conectados ao roteador.
+            obter_configuracao(): Retorna a configuração do roteador.
+    """
+
     def __init__(self, nome_roteador):
         self.nome_roteador = nome_roteador
         self.configuracao = {
@@ -59,6 +110,16 @@ class ConfiguracaoRoteador:
 
 
 class ConfiguracaoHost:
+    """
+        Classe que define a configuração de um host no Docker Compose.
+
+        Atributos:
+            configuracao (dict): Dicionário contendo a configuração do host.
+
+        Métodos:
+            obter_configuracao(): Retorna a configuração do host.
+    """
+
     def __init__(self, nome_host, endereco_ip, nome_rede):
         self.configuracao = {
             'build': './host',
@@ -74,6 +135,26 @@ class ConfiguracaoHost:
 
 
 class DockerCompose:
+    """
+        Classe responsável por montar a estrutura completa do arquivo docker-compose.yml.
+
+        Atributos:
+            subrede_roteadores (str): Template para subredes de roteadores.
+            ip_roteadores (str): Template para IPs de roteadores.
+            subrede_hosts (str): Template para subredes de hosts.
+            estrutura_compose (dict): Estrutura do arquivo Compose.
+            mapa_subredes (dict): Mapeia nome da subrede para seu endereço.
+            custos_subredes (dict): Mapeia nome da subrede para o custo da conexão.
+            mapa_ips (defaultdict): Mapeia roteadores e subredes para seus IPs.
+            contador_subredes (int): Contador usado para criar subredes únicas.
+
+        Métodos:
+            criar_redes_roteadores(lista_conexoes): Cria redes e define IPs para roteadores.
+            adicionar_roteadores_com_hosts(lista_roteadores): Adiciona serviços de roteadores e hosts.
+            construir_redes(): Cria as definições das redes para o Compose.
+            salvar_arquivo_compose(caminho_destino): Salva o conteúdo no formato YAML.
+    """
+
     def __init__(self):
         self.subrede_roteadores = "10.10.{0}.0/24"
         self.ip_roteadores = "10.10.{0}.{1}"
@@ -117,12 +198,10 @@ class DockerCompose:
         for nome_roteador in lista_roteadores:
             roteador = ConfiguracaoRoteador(nome_roteador)
 
-            # Conecta o roteador às redes entre roteadores
             for nome_rede, ip_roteador in self.mapa_ips[nome_roteador].items():
                 custo_rede = self.custos_subredes[nome_rede]
                 roteador.adicionar_rede_com_custo(nome_rede, ip_roteador, custo_rede)
 
-            # Cria rede exclusiva para os hosts do roteador
             nome_rede_hosts = f"{nome_roteador}_hosts_net"
             subrede_hosts = self.subrede_hosts.format(self.contador_subredes)
             self.mapa_subredes[nome_rede_hosts] = subrede_hosts
@@ -132,7 +211,6 @@ class DockerCompose:
 
             self.estrutura_compose['services'][nome_roteador] = roteador.obter_configuracao()
 
-            # Cria dois hosts conectados à rede do roteador
             for indice in range(1, 3):
                 nome_host = f"{nome_roteador}_h{indice}"
                 ip_host = f"192.168.{self.contador_subredes}.{indice + 2}"
@@ -159,6 +237,21 @@ class DockerCompose:
 
 
 def dockercompose_build(caminho_csv, caminho_saida="docker-compose.yml"):
+    """
+        Executa o processo completo de geração do docker-compose.yml a partir de um CSV.
+
+        Parâmetros:
+            caminho_csv (str): Caminho para o arquivo CSV contendo o grafo.
+            caminho_saida (str): Caminho de destino do arquivo docker-compose gerado. Padrão: 'docker-compose.yml'.
+
+        Etapas:
+            - Lê o grafo do CSV.
+            - Cria redes entre roteadores.
+            - Adiciona roteadores com seus respectivos hosts.
+            - Cria as redes no Compose.
+            - Salva o arquivo YAML no destino.
+    """
+
     leitor = LeitorGrafoCSV(caminho_csv)  
     conexoes, roteadores = leitor.carregar_conexoes()  
 
