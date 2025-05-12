@@ -6,32 +6,29 @@ import csv
 
 def gerar_grafo_aleatorio(quantidade_nos: int, probabilidade_conexao: float = 0.3, peso_minimo: int = 1, peso_maximo: int = 10):
     """
-    Gera um grafo aleatório com nós nomeados como RT0, RT1, RT2, ..., RTn.
-    
-    Parâmetros:
-    - quantidade_nos (int): número de nós no grafo.
-    - probabilidade_conexao (float): probabilidade de existir uma aresta entre dois nós.
-    - peso_minimo (int): peso mínimo das arestas.
-    - peso_maximo (int): peso máximo das arestas.
-    
-    Retorna:
-    - grafo (networkx.Graph): o grafo gerado.
+    Gera um grafo aleatório com pesos nas arestas.
+
+    Args:
+        quantidade_nos (int): Número de nós do grafo.
+        probabilidade_conexao (float, optional): Probabilidade de conexão entre os nós. Default é 0.3.
+        peso_minimo (int, optional): Peso mínimo das arestas. Default é 1.
+        peso_maximo (int, optional): Peso máximo das arestas. Default é 10.
+
+    Returns:
+        nx.Graph: Grafo gerado com nós rotulados como 'rt0', 'rt1', etc.
     """
     grafo = nx.erdos_renyi_graph(quantidade_nos, probabilidade_conexao)
     
-    # Adiciona pesos aleatórios para as arestas
     for no_origem, no_destino in grafo.edges():
         peso = random.randint(peso_minimo, peso_maximo)
         grafo[no_origem][no_destino]['peso'] = peso
 
-    # Garante que o grafo seja conexo
     while not nx.is_connected(grafo):
         no_origem, no_destino = random.sample(range(quantidade_nos), 2)
         if not grafo.has_edge(no_origem, no_destino):
             peso = random.randint(peso_minimo, peso_maximo)
             grafo.add_edge(no_origem, no_destino, peso=peso)
 
-    # Renomeia os nós como RT0, RT1, ..., RTn
     nomes = [f"rt{i}" for i in range(quantidade_nos)]
     mapeamento = dict(zip(grafo.nodes(), nomes))
     grafo = nx.relabel_nodes(grafo, mapeamento)
@@ -40,11 +37,11 @@ def gerar_grafo_aleatorio(quantidade_nos: int, probabilidade_conexao: float = 0.
 
 def salvar_imagem_grafo(grafo: nx.Graph, caminho_imagem: str = 'grafo.png'):
     """
-    Salva uma imagem do grafo com rótulos e pesos das arestas.
-    
-    Parâmetros:
-    - grafo (networkx.Graph): o grafo a ser salvo.
-    - caminho_imagem (str): caminho para o arquivo de imagem a ser salvo.
+    Gera uma imagem do grafo com rótulos de nós e pesos nas arestas e a salva como arquivo PNG.
+
+    Args:
+        grafo (nx.Graph): Grafo a ser visualizado.
+        caminho_imagem (str, optional): Caminho do arquivo da imagem a ser salva. Default é 'grafo.png'.
     """
     posicao_nos = nx.circular_layout(grafo)
     pesos = nx.get_edge_attributes(grafo, 'peso')
@@ -59,11 +56,11 @@ def salvar_imagem_grafo(grafo: nx.Graph, caminho_imagem: str = 'grafo.png'):
 
 def salvar_csv_grafo(grafo: nx.Graph, caminho_csv: str = "grafo.csv"):
     """
-    Salva os dados do grafo em um arquivo CSV com as arestas e seus respectivos pesos.
-    
-    Parâmetros:
-    - grafo (networkx.Graph): o grafo a ser salvo.
-    - caminho_csv (str): caminho do arquivo CSV a ser salvo.
+    Salva os dados do grafo em um arquivo CSV.
+
+    Args:
+        grafo (nx.Graph): Grafo a ser salvo.
+        caminho_csv (str, optional): Caminho do arquivo CSV. Default é 'grafo.csv'.
     """
     with open(caminho_csv, mode='w', newline='') as arquivo_csv:
         escritor_csv = csv.writer(arquivo_csv)
@@ -74,29 +71,25 @@ def salvar_csv_grafo(grafo: nx.Graph, caminho_csv: str = "grafo.csv"):
 
 def main(quantidade_nos: int = 5, probabilidade_conexao: float = 0.3, caminho_pasta: str = "graph", peso_minimo: int = 1, peso_maximo: int = 10):
     """
-    Função principal para gerar o grafo, salvar imagem e salvar os dados em CSV.
-    
-    Parâmetros:
-    - quantidade_nos (int): número de nós do grafo.
-    - probabilidade_conexao (float): probabilidade de conexão entre os nós.
-    - caminho_pasta (str): caminho da pasta onde os arquivos serão salvos.
-    - peso_minimo (int): peso mínimo das arestas.
-    - peso_maximo (int): peso máximo das arestas.
+    Executa o processo de geração do grafo e salva a imagem e os dados em arquivos.
+
+    Args:
+        quantidade_nos (int, optional): Número de nós do grafo. Default é 5.
+        probabilidade_conexao (float, optional): Probabilidade de conexão entre os nós. Default é 0.3.
+        caminho_pasta (str, optional): Caminho da pasta onde os arquivos serão salvos. Default é 'graph'.
+        peso_minimo (int, optional): Peso mínimo das arestas. Default é 1.
+        peso_maximo (int, optional): Peso máximo das arestas. Default é 10.
     """
-    # Garantindo que a pasta de saída exista
+
     os.makedirs(caminho_pasta, exist_ok=True)
 
-    # Gerando o grafo aleatório
     grafo = gerar_grafo_aleatorio(quantidade_nos, probabilidade_conexao, peso_minimo, peso_maximo)
     
-    # Salvando a imagem do grafo
     caminho_imagem = f"{caminho_pasta}/grafo.png"
     salvar_imagem_grafo(grafo, caminho_imagem)
     
-    # Salvando os dados do grafo em um arquivo CSV
     caminho_csv = f"{caminho_pasta}/grafo.csv"
     salvar_csv_grafo(grafo, caminho_csv)
 
-# Execução do código
 if __name__ == '__main__':
     main()
