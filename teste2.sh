@@ -39,36 +39,6 @@ for ip in "${!ip_para_nome[@]}"; do
   fi
 done
 
-# Exibe cabeçalho
-echo "================================================"
-echo "Teste de Conectividade entre Roteadores"
-echo "================================================"
-
-# Loop de testes de ping entre os roteadores
-for origem in "${containers_roteadores[@]}"; do
-  echo -e "\nIniciando pings entre roteador: $origem"
-
-  for destino in "${containers_roteadores[@]}"; do
-    # Ignora o ping para o próprio roteador
-    if [[ "$origem" == "$destino" ]]; then
-      continue
-    fi
-
-    ip_destino="${ip_para_nome[$(echo $destino | awk '{print $2}')]}"
-
-    # Realiza o ping entre os roteadores
-    printf "Pingando roteador %-15s (Contêiner: %-15s)... " "$ip_destino" "$destino"
-    if docker exec "$origem" ping -c 1 -W 1 "$ip_destino" &> /dev/null; then
-      echo "Conectividade bem-sucedida"
-      ((contagem_sucessos++))
-    else
-      echo "Falha na conectividade"
-      ((contagem_falhas++))
-    fi
-  done
-  echo "---------------------------------------------"
-done
-
 # Exibe cabeçalho para a verificação entre os hosts
 echo "================================================"
 echo "Teste de Conectividade entre Contêineres Hosts"
