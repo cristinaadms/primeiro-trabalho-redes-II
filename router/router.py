@@ -346,7 +346,7 @@ class LSABroadcaster:
             self._lsdb.atualizar(pacote)
             message = json.dumps(pacote).encode("utf-8")
 
-            for ip in self._neighbors_ip.values():
+            for ip in list(self._neighbors_ip.values()):
                 try:
                     sock.sendto(message, (ip, self._PORTA))
                     print(f"[{self._router_id}] Pacote LSA enviado para {ip}")
