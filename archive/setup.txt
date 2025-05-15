@@ -20,5 +20,3 @@ docker-compose down
 3. Limpeza de Rede Docker (Opcional)
 - Remove todas as redes não utilizadas criadas pelo Docker:
 docker network prune
-
-
