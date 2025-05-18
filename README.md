@@ -48,22 +48,22 @@ docker-compose up --build
 
 
 6. Para usar o comando ping, acesse o Docker pelo VSCode e escolha um roteador ou host:
-Ping de roteador para roteador:
+- **Ping de roteador para roteador:**
 ```bash
 ping <IP do roteador de destino>
 ```
-Ping de host para host:
+- **Ping de host para host:**
 ```bash
 ping <IP do host de destino>
 ```
 
 
 7. Para usar o comando traceroute, também via Docker no VSCode, escolha um roteador ou host:
-Traceroute de roteador para roteador:
+- **Traceroute de roteador para roteador:**
 ```bash
 traceroute <IP do roteador de destino>
 ```
-Traceroute de host para host:
+- **Traceroute de host para host:**
 ```bash
 traceroute <IP do host de destino>
 ```
