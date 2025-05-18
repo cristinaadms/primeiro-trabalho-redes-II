@@ -8,7 +8,12 @@ import subprocess
 import ipaddress
 
 
-#--------------------------------------LSDB--------------------------------------------------------------------------#
+# ===================================== LSDB ====================================== #
+# Este módulo simula um protocolo de roteamento baseado no Estado de Enlace (Link-State)
+# Utiliza a base de dados LSDB (Link-State Database) para calcular os melhores caminhos
+# de roteamento em uma rede.
+# ================================================================================== #
+
 
 class TabelaLSA:
     """
@@ -185,9 +190,11 @@ class LSDB:
         self._gerenciador_rotas.atualizar_rotas()
         return True
     
-#-------------------------------HELLO SENDER---------------------------------------------------#
-    #enviaO periodico de pacotes do tipo "HELLO" via broadcast para interfaces de rede específicas#
 
+# ============================== HELLO SENDER =============================== #
+# Responsável pelo envio periódico de pacotes HELLO, que são utilizados para
+# detectar vizinhos em uma rede.
+# ========================================================================== #
 
 
 class HelloPacketBuilder:
@@ -283,7 +290,11 @@ class HelloSender:
                 )
                 thread_emissor.start()
 
-#---------------------------------------------LSASender---------------------------------------------------------------#
+
+# ============================== LSA SENDER ================================== #
+# Responsável pelo envio e encaminhamento de pacotes LSA (Link State Advertisement),
+# utilizados para compartilhar informações sobre o estado dos enlaces entre roteadores.
+# =========================================================================== #
 
 
 class LSAPacketBuilder:
@@ -423,7 +434,11 @@ class LSASender:
         return self._broadcaster.encaminhar_para_vizinhos(pacote, neighbor_ip)
 
 
-#--------------------------ROTEADOR----------------------------#
+# =============================== ROTEADOR =============================== #
+# Módulo principal responsável pelo funcionamento geral de um roteador.
+# Integra os componentes de descoberta de vizinhos, recepção e processamento
+# de pacotes, além do controle das interfaces de rede.
+# ======================================================================= #
 
 class InterfaceManager:
     """
@@ -561,7 +576,11 @@ class Roteador:
         inicializador = InicializadorRoteador(receptor, hello)
         inicializador.iniciar()
 
-#-------------------------gerenciador de vizinhos---------------------------------------------#
+# ========================== GERENCIADOR DE VIZINHOS =========================== #
+# Responsável pelo gerenciamento dos vizinhos de um roteador na rede.
+# Processa pacotes HELLO para descoberta de vizinhos e pacotes LSA para
+# atualização das informações de topologia.
+# ============================================================================= #
 
 class CalculadoraCusto:
     """
