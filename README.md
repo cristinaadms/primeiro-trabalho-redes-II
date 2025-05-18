@@ -29,25 +29,25 @@ A topologia da rede utilizada neste projeto foi gerada automaticamente por meio 
 
 Para executar o projeto, siga os passos abaixo:
 
-Abra o Docker Desktop.
+1. Abra o Docker Desktop.
 
-Execute o arquivo build_graph.py para gerar o grafo em formato PNG e CSV.
+2. Execute o arquivo build_graph.py para gerar o grafo em formato PNG e CSV.
 
-Execute o arquivo build_compose.py para gerar o arquivo docker-compose.yml.
+3. Execute o arquivo build_compose.py para gerar o arquivo docker-compose.yml.
 
-No terminal, baixe a imagem oficial do Python 3.13.2 slim com o comando:
+4. No terminal, baixe a imagem oficial do Python 3.13.2 slim com o comando:
 
 ```bash
 docker pull python:3.13.2-slim
 ```
 
-Execute o comando para iniciar e construir os containers:
+5. Execute o comando para iniciar e construir os containers:
 ```bash
 docker-compose up --build
 ```
 
 
-Para usar o comando ping, acesse o Docker pelo VSCode e escolha um roteador ou host:
+6. Para usar o comando ping, acesse o Docker pelo VSCode e escolha um roteador ou host:
 Ping de roteador para roteador:
 ```bash
 ping <IP do roteador de destino>
@@ -58,7 +58,7 @@ ping <IP do host de destino>
 ```
 
 
-Para usar o comando traceroute, também via Docker no VSCode, escolha um roteador ou host:
+7. Para usar o comando traceroute, também via Docker no VSCode, escolha um roteador ou host:
 Traceroute de roteador para roteador:
 ```bash
 traceroute <IP do roteador de destino>
@@ -69,7 +69,7 @@ traceroute <IP do host de destino>
 ```
 
 
-Para parar a execução, pressione Ctrl + C e depois execute:
+8. Para parar a execução, pressione Ctrl + C e depois execute:
 ```bash
 docker-compose down
 ```
